@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>奶茶店管理系统</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, "Microsoft YaHei", sans-serif; background: #f5f5f5; color: #333; }
+  .header { background: linear-gradient(135deg, #ff6b6b, #ee5a52); color: #fff; padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; }
+  .header h1 { font-size: 20px; }
+  .header .right { display: flex; align-items: center; gap: 16px; font-size: 13px; }
+  .header .logout { cursor: pointer; opacity: 0.9; }
+  .header .logout:hover { opacity: 1; text-decoration: underline; }
+  .tabs { display: flex; background: #fff; border-bottom: 1px solid #eee; padding: 0 24px; }
+  .tab { padding: 14px 20px; cursor: pointer; border-bottom: 2px solid transparent; font-size: 14px; color: #666; }
+  .tab.active { color: #ee5a52; border-bottom-color: #ee5a52; font-weight: 600; }
+  .container { padding: 20px 24px; }
+  .card { background: #fff; border-radius: 10px; padding: 20px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+  .card h3 { font-size: 16px; margin-bottom: 14px; color: #333; display: flex; justify-content: space-between; align-items: center; }
+  .drink-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 14px; }
+  .drink-item { border: 1px solid #eee; border-radius: 10px; padding: 14px; cursor: pointer; transition: all 0.2s; }
+  .drink-item:hover { border-color: #ee5a52; box-shadow: 0 4px 12px rgba(238,90,82,0.15); }
+  .drink-name { font-size: 15px; font-weight: 600; margin-bottom: 6px; }
+  .drink-price { color: #ee5a52; font-size: 18px; font-weight: 700; }
+  .drink-desc { font-size: 12px; color: #999; margin-top: 4px; }
+  .cart { position: fixed; right: 24px; bottom: 24px; width: 340px; background: #fff; border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,0.15); overflow: hidden; z-index: 50; }
+  .cart-header { background: #ee5a52; color: #fff; padding: 14px; font-weight: 600; display: flex; justify-content: space-between; }
+  .cart-body { max-height: 300px; overflow-y: auto; padding: 10px 14px; }
+  .cart-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #f0f0f0; }
+  .cart-item .name { font-size: 13px; }
+  .cart-item .ctrl { display: flex; align-items: center; gap: 8px; }
+  .cart-item button { width: 24px; height: 24px; border: 1px solid #ddd; background: #fff; border-radius: 4px; cursor: pointer; }
+  .cart-footer { padding: 12px 14px; border-top: 1px solid #eee; }
+  .cart-footer .total { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 15px; }
+  .cart-footer .total .amt { color: #ee5a52; font-weight: 700; font-size: 18px; }
+  .btn { padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; }
+  .btn-primary { background: #ee5a52; color: #fff; }
+  .btn-primary:hover { background: #d94840; }
+  .btn-block { width: 100%; padding: 10px; }
+  .btn-sm { padding: 4px 10px; font-size: 12px; }
+  .btn-danger { background: #f56c6c; color: #fff; }
+  .order-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .order-table th, .order-table td { padding: 10px; text-align: left; border-bottom: 1px solid #eee; }
+  .order-table th { background: #fafafa; color: #666; font-weight: 600; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 12px; }
+  .badge-0 { background: #fff3cd; color: #856404; }
+  .badge-1 { background: #d4edda; color: #155724; }
+  .badge-3 { background: #cce5ff; color: #004085; }
+  .badge-5 { background: #f8d7da; color: #721c24; }
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; }
+  .stat-card { background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; border-radius: 10px; padding: 18px; }
+  .stat-card.green { background: linear-gradient(135deg, #43e97b, #38f9d7); }
+  .stat-card.orange { background: linear-gradient(135deg, #fa709a, #fee140); }
+  .stat-card.blue { background: linear-gradient(135deg, #4facfe, #00f2fe); }
+  .stat-label { font-size: 13px; opacity: 0.9; }
+  .stat-value { font-size: 28px; font-weight: 700; margin-top: 6px; }
+  .coupon-select, .member-select { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 6px; margin-bottom: 10px; }
+  .toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: #333; color: #fff; padding: 10px 20px; border-radius: 6px; z-index: 9999; opacity: 0; transition: opacity 0.3s; }
+  .toast.show { opacity: 1; }
+  /* 登录页 */
+  .login-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #ff6b6b, #ee5a52); }
+  .login-box { background: #fff; border-radius: 16px; padding: 40px; width: 380px; box-shadow: 0 20px 60px rgba(0,0,0,0.2); }
+  .login-box h2 { text-align: center; margin-bottom: 8px; color: #333; }
+  .login-box .sub { text-align: center; color: #999; font-size: 13px; margin-bottom: 28px; }
+  .role-cards { display: flex; gap: 12px; margin-bottom: 20px; }
+  .role-card { flex: 1; border: 2px solid #eee; border-radius: 10px; padding: 18px; text-align: center; cursor: pointer; transition: all 0.2s; }
+  .role-card:hover { border-color: #ee5a52; }
+  .role-card.active { border-color: #ee5a52; background: #fff5f5; }
+  .role-card .icon { font-size: 32px; margin-bottom: 6px; }
+  .role-card .name { font-size: 14px; font-weight: 600; }
+  .login-box input, .login-box select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; margin-bottom: 14px; font-size: 14px; }
+  .login-box input:focus, .login-box select:focus { border-color: #ee5a52; outline: none; }
+  .inv-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .inv-table th, .inv-table td { padding: 10px; text-align: left; border-bottom: 1px solid #eee; }
+  .inv-table th { background: #fafafa; color: #666; }
+  .warn { color: #f56c6c; font-weight: 600; }
+</style>
+</head>
+<body>
+
+<!-- 登录页 -->
+<div class="login-wrap" id="loginPage">
+  <div class="login-box">
+    <h2>🧋 奶茶店系统</h2>
+    <div class="sub">请选择身份登录</div>
+    <div class="role-cards">
+      <div class="role-card active" id="roleCustomer" onclick="selectRole('customer')">
+        <div class="icon">🥤</div>
+        <div class="name">顾客下单</div>
+      </div>
+      <div class="role-card" id="roleAdmin" onclick="selectRole('admin')">
+        <div class="icon">👨‍💼</div>
+        <div class="name">管理员</div>
+      </div>
+    </div>
+    <div id="customerForm">
+      <select id="memberSelectLogin"><option value="">选择会员</option></select>
+    </div>
+    <div id="adminForm" style="display:none">
+      <input type="password" id="adminPwd" placeholder="管理员密码">
+    </div>
+    <button class="btn btn-primary btn-block" onclick="doLogin()" style="padding:12px;font-size:15px">登 录</button>
+  </div>
+</div>
+
+<!-- 主界面 -->
+<div id="mainApp" style="display:none">
+<div class="header">
+  <h1>🧋 奶茶店管理系统</h1>
+  <div class="right">
+    <span id="userInfo"></span>
+    <span class="logout" onclick="logout()">退出登录</span>
+  </div>
+</div>
+
+<div class="tabs" id="tabsBar"></div>
+
+<div class="container">
+  <!-- 点餐 -->
+  <div id="tab-order">
+    <div class="card">
+      <h3>饮品菜单</h3>
+      <div class="drink-grid" id="drinkGrid"></div>
+    </div>
+  </div>
+
+  <!-- 订单 -->
+  <div id="tab-orders" style="display:none">
+    <div class="card">
+      <h3>订单列表</h3>
+      <table class="order-table">
+        <thead><tr><th>订单号</th><th>金额</th><th>优惠</th><th>积分</th><th>状态</th><th>操作</th></tr></thead>
+        <tbody id="orderList"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 菜单管理 -->
+  <div id="tab-drinks" style="display:none">
+    <div class="card">
+      <h3>饮品管理 <button class="btn btn-primary btn-sm" onclick="showDrinkModal()">+ 新增饮品</button></h3>
+      <table class="order-table">
+        <thead><tr><th>ID</th><th>名称</th><th>分类</th><th>价格</th><th>状态</th><th>操作</th></tr></thead>
+        <tbody id="drinkMgrList"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 库存 -->
+  <div id="tab-inv" style="display:none">
+    <div class="card">
+      <h3>库存管理</h3>
+      <table class="inv-table">
+        <thead><tr><th>ID</th><th>原料名称</th><th>当前库存</th><th>单位</th><th>预警值</th><th>操作</th></tr></thead>
+        <tbody id="invList"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 统计 -->
+  <div id="tab-stats" style="display:none">
+    <div class="card"><h3>经营概览</h3><div class="stat-grid" id="statGrid"></div></div>
+    <div class="card"><h3>热销饮品</h3><div id="popularDrinks"></div></div>
+  </div>
+</div>
+
+<!-- 购物车 -->
+<div class="cart" id="cart">
+  <div class="cart-header"><span>购物车</span><span id="cartCount">0</span></div>
+  <div class="cart-body" id="cartBody">
+    <div style="text-align:center;color:#999;padding:20px">购物车为空</div>
+  </div>
+  <div class="cart-footer">
+    <select class="member-select" id="memberSelect"><option value="">选择会员</option></select>
+    <select class="coupon-select" id="couponSelect"><option value="">不使用优惠券</option></select>
+    <div class="total"><span>合计</span><span class="amt" id="totalAmt">0.00</span></div>
+    <button class="btn btn-primary btn-block" onclick="submitOrder()">提交订单</button>
+  </div>
+</div>
+</div>
+
+<!-- 新增/编辑饮品弹窗 -->
+<div class="modal" id="drinkModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:100;align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:12px;padding:24px;width:420px">
+    <h3 id="drinkModalTitle">新增饮品</h3>
+    <input type="hidden" id="drinkEditId">
+    <input type="text" id="drinkName" placeholder="饮品名称" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:6px;margin-bottom:12px">
+    <select id="drinkCat" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:6px;margin-bottom:12px"></select>
+    <input type="number" id="drinkPrice" placeholder="价格" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:6px;margin-bottom:12px">
+    <textarea id="drinkDesc" placeholder="描述" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:6px;margin-bottom:12px;height:60px"></textarea>
+    <div style="display:flex;justify-content:flex-end;gap:10px">
+      <button class="btn" onclick="hideDrinkModal()">取消</button>
+      <button class="btn btn-primary" onclick="saveDrink()">保存</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const API = 'http://localhost:8080/api';
+let drinks = [], members = [], coupons = [], categories = [], inventory = [];
+let cart = {};
+let currentRole = 'customer';
+let currentMember = null;
+
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+// 登录
+function selectRole(r) {
+  currentRole = r;
+  document.getElementById('roleCustomer').classList.toggle('active', r === 'customer');
+  document.getElementById('roleAdmin').classList.toggle('active', r === 'admin');
+  document.getElementById('customerForm').style.display = r === 'customer' ? 'block' : 'none';
+  document.getElementById('adminForm').style.display = r === 'admin' ? 'block' : 'none';
+}
+
+async function loadMembersForLogin() {
+  const res = await fetch(API + '/members');
+  const json = await res.json();
+  members = json.data;
+  const sel = document.getElementById('memberSelectLogin');
+  sel.innerHTML = '<option value="">选择会员</option>' +
+    members.map(m => `<option value="${m.id}">${m.name} (${m.phone})</option>`).join('');
+}
+
+async function doLogin() {
+  if (currentRole === 'customer') {
+    const mid = document.getElementById('memberSelectLogin').value;
+    if (!mid) return toast('请选择会员');
+    currentMember = members.find(m => m.id == mid);
+    enterApp();
+  } else {
+    const pwd = document.getElementById('adminPwd').value;
+    if (pwd !== 'admin123') return toast('密码错误');
+    currentMember = null;
+    enterApp();
+  }
+}
+
+function logout() {
+  document.getElementById('loginPage').style.display = 'flex';
+  document.getElementById('mainApp').style.display = 'none';
+  document.getElementById('adminPwd').value = '';
+}
+
+function enterApp() {
+  document.getElementById('loginPage').style.display = 'none';
+  document.getElementById('mainApp').style.display = 'block';
+  const info = document.getElementById('userInfo');
+  if (currentRole === 'customer') {
+    info.textContent = `🥤 ${currentMember.name}（顾客）`;
+  } else {
+    info.textContent = '👨‍💼 管理员';
+  }
+  renderTabs();
+  loadDrinks(); loadMembers(); loadCoupons();
+}
+
+function renderTabs() {
+  const bar = document.getElementById('tabsBar');
+  let tabs;
+  if (currentRole === 'customer') {
+    tabs = [{k:'order',n:'点餐'}];
+  } else {
+    tabs = [
+      {k:'order',n:'点餐'},
+      {k:'orders',n:'订单'},
+      {k:'drinks',n:'菜单管理'},
+      {k:'inv',n:'库存'},
+      {k:'stats',n:'统计'}
+    ];
+  }
+  bar.innerHTML = tabs.map((t,i) =>
+    `<div class="tab ${i===0?'active':''}" onclick="switchTab('${t.k}',this)">${t.n}</div>`).join('');
+  // 隐藏所有非点餐tab
+  ['order','orders','drinks','inv','stats'].forEach(n => {
+    document.getElementById('tab-'+n).style.display = n==='order' ? 'block' : 'none';
+  });
+  document.getElementById('cart').style.display = 'block';
+}
+
+function switchTab(name, el) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  if (el) el.classList.add('active');
+  ['order','orders','drinks','inv','stats'].forEach(n =>
+    document.getElementById('tab-'+n).style.display = n===name ? 'block' : 'none');
+  document.getElementById('cart').style.display = name === 'order' ? 'block' : 'none';
+  if (name === 'orders') loadOrders();
+  if (name === 'drinks') loadDrinkMgr();
+  if (name === 'inv') loadInventory();
+  if (name === 'stats') loadStats();
+}
+
+async function loadDrinks() {
+  const res = await fetch(API + '/drinks');
+  const json = await res.json();
+  drinks = json.data.filter(d => d.status === 1);
+  const grid = document.getElementById('drinkGrid');
+  grid.innerHTML = drinks.map(d => `
+    <div class="drink-item" onclick="addToCart(${d.id})">
+      <div class="drink-name">${d.name}</div>
+      <div class="drink-price">¥${d.price}</div>
+      <div class="drink-desc">${d.description || ''}</div>
+    </div>`).join('');
+}
+
+async function loadMembers() {
+  const res = await fetch(API + '/members');
+  const json = await res.json();
+  members = json.data;
+  const sel = document.getElementById('memberSelect');
+  sel.innerHTML = '<option value="">选择会员</option>' +
+    members.map(m => `<option value="${m.id}">${m.name} (${m.phone}) - ${m.points}积分</option>`).join('');
+  // 顾客默认选中自己
+  if (currentMember) sel.value = currentMember.id;
+}
+
+async function loadCoupons() {
+  const res = await fetch(API + '/coupons/available');
+  const json = await res.json();
+  coupons = json.data;
+  const sel = document.getElementById('couponSelect');
+  sel.innerHTML = '<option value="">不使用优惠券</option>' +
+    coupons.map(c => {
+      const t = c.type===1?'满减':c.type===2?'折扣':'立减';
+      return `<option value="${c.id}">${c.name} [${t}]</option>`;
+    }).join('');
+}
+
+function addToCart(drinkId) {
+  cart[drinkId] = (cart[drinkId] || 0) + 1;
+  renderCart();
+}
+
+function changeQty(drinkId, delta) {
+  cart[drinkId] = (cart[drinkId] || 0) + delta;
+  if (cart[drinkId] <= 0) delete cart[drinkId];
+  renderCart();
+}
+
+function renderCart() {
+  const items = Object.entries(cart);
+  const count = items.reduce((s, [,q]) => s + q, 0);
+  document.getElementById('cartCount').textContent = count;
+  const body = document.getElementById('cartBody');
+  if (items.length === 0) {
+    body.innerHTML = '<div style="text-align:center;color:#999;padding:20px">购物车为空</div>';
+    document.getElementById('totalAmt').textContent = '0.00';
+    return;
+  }
+  let total = 0;
+  body.innerHTML = items.map(([id, qty]) => {
+    const d = drinks.find(x => x.id == id);
+    total += d.price * qty;
+    return `<div class="cart-item">
+      <span class="name">${d.name}</span>
+      <div class="ctrl">
+        <button onclick="changeQty(${id},-1)">-</button>
+        <span>${qty}</span>
+        <button onclick="changeQty(${id},1)">+</button>
+        <span style="color:#ee5a52;margin-left:6px">¥${(d.price*qty).toFixed(2)}</span>
+      </div></div>`;
+  }).join('');
+  document.getElementById('totalAmt').textContent = total.toFixed(2);
+}
+
+async function submitOrder() {
+  const memberId = document.getElementById('memberSelect').value;
+  const couponId = document.getElementById('couponSelect').value;
+  const items = Object.entries(cart).map(([id, qty]) => ({ drinkId: +id, quantity: qty }));
+  if (!memberId) return toast('请选择会员');
+  if (items.length === 0) return toast('购物车为空');
+
+  const res = await fetch(API + '/orders', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ memberId: +memberId, couponId: couponId ? +couponId : null, items })
+  });
+  const json = await res.json();
+  if (json.code === 200) {
+    toast('下单成功！实付 ¥' + json.data.totalAmount + '，积分+' + json.data.pointsEarned);
+    cart = {}; renderCart();
+  } else {
+    toast('下单失败：' + json.message);
+  }
+}
+
+const statusMap = {0:'待支付',1:'已支付',2:'制作中',3:'已完成',4:'已取消',5:'已退款'};
+
+async function loadOrders() {
+  const res = await fetch(API + '/orders');
+  const json = await res.json();
+  const tbody = document.getElementById('orderList');
+  tbody.innerHTML = json.data.map(o => `
+    <tr>
+      <td>${o.orderNo}</td>
+      <td>¥${o.totalAmount}</td>
+      <td>${o.discountAmount || 0}</td>
+      <td>${o.pointsEarned || 0}</td>
+      <td><span class="badge badge-${o.status}">${statusMap[o.status]}</span></td>
+      <td>
+        ${o.status===1 || o.status===3 ? `<button class="btn btn-primary btn-sm" onclick="refund(${o.id})">退款</button>` : ''}
+      </td>
+    </tr>`).join('');
+}
+
+async function refund(id) {
+  if (!confirm('确认退款？将回滚库存并扣回积分')) return;
+  const res = await fetch(API + '/orders/' + id + '/refund', { method: 'POST' });
+  const json = await res.json();
+  toast(json.message);
+  loadOrders();
+}
+
+// 菜单管理
+async function loadCategories() {
+  const res = await fetch(API + '/categories');
+  const json = await res.json();
+  categories = json.data;
+}
+
+async function loadDrinkMgr() {
+  await loadCategories();
+  const res = await fetch(API + '/drinks');
+  const json = await res.json();
+  const allDrinks = json.data;
+  const tbody = document.getElementById('drinkMgrList');
+  tbody.innerHTML = allDrinks.map(d => {
+    const cat = categories.find(c => c.id === d.categoryId);
+    return `<tr>
+      <td>${d.id}</td>
+      <td>${d.name}</td>
+      <td>${cat ? cat.name : '-'}</td>
+      <td>¥${d.price}</td>
+      <td>${d.status===1?'上架':'下架'}</td>
+      <td>
+        <button class="btn btn-sm" onclick="editDrink(${d.id})">编辑</button>
+        <button class="btn btn-sm btn-danger" onclick="delDrink(${d.id})">删除</button>
+      </td>
+    </tr>`;
+  }).join('');
+  // 填充分类下拉
+  const sel = document.getElementById('drinkCat');
+  sel.innerHTML = categories.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+}
+
+function showDrinkModal() {
+  document.getElementById('drinkModalTitle').textContent = '新增饮品';
+  document.getElementById('drinkEditId').value = '';
+  document.getElementById('drinkName').value = '';
+  document.getElementById('drinkPrice').value = '';
+  document.getElementById('drinkDesc').value = '';
+  document.getElementById('drinkModal').style.display = 'flex';
+}
+
+function hideDrinkModal() {
+  document.getElementById('drinkModal').style.display = 'none';
+}
+
+function editDrink(id) {
+  const d = drinks.find(x => x.id === id);
+  if (!d) return;
+  document.getElementById('drinkModalTitle').textContent = '编辑饮品';
+  document.getElementById('drinkEditId').value = d.id;
+  document.getElementById('drinkName').value = d.name;
+  document.getElementById('drinkPrice').value = d.price;
+  document.getElementById('drinkDesc').value = d.description || '';
+  document.getElementById('drinkCat').value = d.categoryId;
+  document.getElementById('drinkModal').style.display = 'flex';
+}
+
+async function saveDrink() {
+  const id = document.getElementById('drinkEditId').value;
+  const data = {
+    name: document.getElementById('drinkName').value,
+    categoryId: +document.getElementById('drinkCat').value,
+    price: +document.getElementById('drinkPrice').value,
+    description: document.getElementById('drinkDesc').value,
+    status: 1
+  };
+  const url = id ? API + '/drinks/' + id : API + '/drinks';
+  const method = id ? 'PUT' : 'POST';
+  const res = await fetch(url, {
+    method, headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+  const json = await res.json();
+  if (json.code === 200) {
+    toast('保存成功');
+    hideDrinkModal();
+    loadDrinkMgr();
+    loadDrinks();
+  } else {
+    toast('保存失败：' + json.message);
+  }
+}
+
+async function delDrink(id) {
+  if (!confirm('确认删除？')) return;
+  await fetch(API + '/drinks/' + id, { method: 'DELETE' });
+  toast('已删除');
+  loadDrinkMgr();
+}
+
+// 库存
+async function loadInventory() {
+  const res = await fetch(API + '/inventory');
+  const json = await res.json();
+  inventory = json.data;
+  const tbody = document.getElementById('invList');
+  tbody.innerHTML = inventory.map(i => `
+    <tr>
+      <td>${i.id}</td>
+      <td>${i.name}</td>
+      <td class="${i.quantity <= i.warningValue ? 'warn' : ''}">${i.quantity}</td>
+      <td>${i.unit}</td>
+      <td>${i.warningValue}</td>
+      <td><button class="btn btn-sm btn-primary" onclick="stockIn(${i.id})">入库</button></td>
+    </tr>`).join('');
+}
+
+async function stockIn(id) {
+  const qty = prompt('请输入入库数量：');
+  if (!qty || isNaN(qty)) return;
+  const res = await fetch(API + '/inventory/' + id + '/stock-in', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ quantity: +qty })
+  });
+  const json = await res.json();
+  toast(json.message);
+  loadInventory();
+}
+
+// 统计
+async function loadStats() {
+  const rev = await (await fetch(API + '/stats/today-revenue')).json();
+  const st = await (await fetch(API + '/stats/order-status')).json();
+  const pop = await (await fetch(API + '/stats/popular-drinks')).json();
+
+  document.getElementById('statGrid').innerHTML = `
+    <div class="stat-card"><div class="stat-label">今日营收</div><div class="stat-value">¥${rev.data.totalRevenue}</div></div>
+    <div class="stat-card green"><div class="stat-label">今日订单</div><div class="stat-value">${rev.data.orderCount}</div></div>
+    <div class="stat-card orange"><div class="stat-label">已完成</div><div class="stat-value">${st.data.completed || 0}</div></div>
+    <div class="stat-card blue"><div class="stat-label">已退款</div><div class="stat-value">${st.data.refunded || 0}</div></div>`;
+
+  document.getElementById('popularDrinks').innerHTML = (pop.data || []).map((d,i) =>
+    `<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #eee">
+      <span>${i+1}. ${d.drinkName}</span><span style="color:#ee5a52">${d.totalQuantity} 杯</span></div>`).join('') || '<div style="color:#999">暂无数据</div>';
+}
+
+loadMembersForLogin();
+</script>
+</body>
+</html>
